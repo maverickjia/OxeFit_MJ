@@ -1,0 +1,50 @@
+Fix: Google GenAI Client Missing Credentials
+=============================================
+Date: 2026-01-14
+File: domain/nutrition/services.py
+Lines: 1115-1125
+
+Issue:
+------
+The _get_genai_client() method was initializing genai.Client() without any
+credentials, causing the error:
+"ValueError: Missing key inputs argument! To use the Google AI API, provide
+(api_key) arguments. To use the Google Cloud API, provide (vertexai, project
+& location) arguments."
+
+Before:
+-------
+    def _get_genai_client(self):
+        """Lazy-load the Gemini client."""
+        if self._genai_client is None:
+            try:
+                from google import genai
+                self._genai_client = genai.Client()
+            except ImportError:
+                raise RuntimeError(
+                    "Gemini API is not available. Please install google-genai package."
+                )
+        return self._genai_client
+
+After:
+------
+    def _get_genai_client(self):
+        """Lazy-load the Gemini client."""
+        if self._genai_client is None:
+            try:
+                from domain.agents.langgraph.agents.google_chat_ai_factory import create_genai_client
+                self._genai_client = create_genai_client()
+            except ImportError:
+                raise RuntimeError(
+                    "Gemini API is not available. Please install google-genai package."
+                )
+        return self._genai_client
+
+Explanation:
+------------
+The fix uses the existing create_genai_client() factory function from
+google_chat_ai_factory.py which properly configures the client with:
+- vertexai=True
+- project (from Application Default Credentials)
+- credentials (from environment/Workload Identity)
+- location="us-central1"

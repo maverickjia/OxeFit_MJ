@@ -1,0 +1,315 @@
+OxeAI API - New Developer Learning Guide
+========================================
+
+OVERVIEW
+--------
+
+This is an AI-powered fitness coaching API built with:
+- FastAPI (Python 3.13+) for the web framework
+- LangGraph for multi-agent orchestration
+- Google Gemini for AI/LLM capabilities
+- MongoDB Atlas for persistence
+- Domain-Driven Design (DDD) 4-layer architecture
+
+The system features 8 specialized AI agents (Workout Coach, Nutrition, Sleep,
+Mental Wellbeing, etc.) that collaborate to provide personalized fitness guidance.
+
+
+================================================================================
+STEP-BY-STEP LEARNING PATH
+================================================================================
+
+PHASE 1: Understand the Big Picture (Day 1)
+-------------------------------------------
+
+Step 1: Read the entry point
+    src/web/main.py
+
+This is where FastAPI app is created. Notice how routers are registered and
+middleware configured.
+
+
+Step 2: Understand the 4-layer architecture
+
+    src/
+    ├── domain/          # Layer 1: Pure business logic (NO external deps)
+    ├── infrastructure/  # Layer 2: Technical implementations (DB, LLM, tools)
+    ├── interfaces/      # Layer 3: HTTP endpoints (FastAPI routers)
+    ├── application/     # Layer 4: App orchestration & lifespan
+
+
+Step 3: Trace a chat request
+
+Start at:  src/interfaces/http/routers/prompt.py
+Follows to: src/domain/chat/services.py
+Ends at:   src/domain/agents/langgraph/ (LangGraph execution)
+
+
+--------------------------------------------------------------------------------
+PHASE 2: Learn the Agent System (Days 2-3)
+--------------------------------------------------------------------------------
+
+Step 4: Study the LangGraph workflow
+
+    src/domain/agents/langgraph/graph.py       # Main workflow definition
+    src/domain/agents/langgraph/state.py       # Graph state models
+
+
+Step 5: Understand the routing logic
+
+    src/domain/agents/langgraph/nodes/router.py     # How queries get routed
+    src/domain/agents/langgraph/nodes/aggregator.py # How responses are aggregated
+
+
+Step 6: Explore one agent in depth
+
+Start with the simplest one:
+    src/domain/agents/langgraph/agents/companion.py
+
+Then study the base class:
+    src/domain/agents/langgraph/agents/base.py  # 53KB - core logic here
+
+
+--------------------------------------------------------------------------------
+PHASE 3: Learn the Tool System (Days 4-5)
+--------------------------------------------------------------------------------
+
+Step 7: Understand tool registration (CRITICAL)
+
+    src/infrastructure/functions/registration.py  # All 40+ tools registered here
+    src/infrastructure/functions/core.py          # Function host factory
+    src/infrastructure/functions/oxeai_function.py # Base class for tools
+
+
+Step 8: Study a concrete tool implementation
+
+    src/infrastructure/functions/nutrition/    # Pick any function here
+    src/infrastructure/functions/workout_coach/
+
+
+--------------------------------------------------------------------------------
+PHASE 4: Understand Domain Models (Days 6-7)
+--------------------------------------------------------------------------------
+
+Step 9: Study core domains
+
+    src/domain/sessions/      # User sessions & conversation management
+    src/domain/conversations/ # Chat messages and artifacts
+    src/domain/workouts/      # Exercise tracking
+    src/domain/nutrition/     # Meal tracking (recently modified)
+    src/domain/memory/        # Memory systems (long-term, semantic)
+
+
+Step 10: Learn the Repository Pattern
+
+Each domain has:
+    - models.py       - Domain entities (Pydantic models)
+    - persistence.py  - Abstract repository + MongoDB implementation
+    - services.py     - Business logic (optional)
+
+
+--------------------------------------------------------------------------------
+PHASE 5: Configuration & Testing (Day 8)
+--------------------------------------------------------------------------------
+
+Step 11: Understand configuration
+
+    src/config/models.py      # Settings classes (OxeAISettings, GeminiSettings)
+    src/settings.json         # Main settings file
+    src/settings.local.json   # Local overrides (git-ignored)
+
+
+Step 12: Learn the test structure
+
+    tests/conftest.py         # Key fixtures: settings, database, clock
+    tests/langgraph_tests/    # Agent and routing tests
+    tests/functions/          # Tool/function tests
+    tests/doubles/            # Fakes and mocks
+
+Run tests:
+    python -m pytest -m "not explicit" -v
+
+
+--------------------------------------------------------------------------------
+PHASE 6: Hands-On Practice (Days 9-10)
+--------------------------------------------------------------------------------
+
+Step 13: Run the application locally
+
+    # Setup (see docs)
+    cd src
+    python -m uvicorn web.main:app --reload --port 8000
+
+
+Step 14: Test the API
+
+    - Open Swagger UI: http://localhost:8000/docs
+    - Try the /Sessions/Current/Prompt endpoint
+
+
+Step 15: Make a small change
+
+Try adding a simple log statement to:
+    src/domain/agents/langgraph/nodes/router.py
+and observe the routing decisions.
+
+
+================================================================================
+KEY FILES QUICK REFERENCE
+================================================================================
+
+File                                              | Why It Matters
+--------------------------------------------------|--------------------------------
+domain/agents/langgraph/graph.py                  | Main AI workflow
+domain/agents/langgraph/agents/base.py            | Core agent logic (53KB)
+infrastructure/functions/registration.py          | All tool registrations
+interfaces/http/routers/prompt.py                 | Main chat API endpoint
+application/lifespan.py                           | App initialization
+domain/sessions/persistence.py                    | Session management
+
+
+================================================================================
+ARCHITECTURE PATTERNS TO UNDERSTAND
+================================================================================
+
+1. Repository Pattern    - Abstract data access behind interfaces
+2. Service Layer         - Business logic coordination
+3. Facade Pattern        - Simplified interface (see LongTermMemoryFacade)
+4. Dependency Injection  - FastAPI Depends() throughout
+5. Strategy Pattern      - Each agent is a strategy for handling queries
+
+
+================================================================================
+THE 8 SPECIALIZED AGENTS
+================================================================================
+
+1. CompanionAgent        - Warm greetings, profile checks, general queries
+2. WorkoutCoachAgent     - Real-time workout logging, form feedback
+3. WorkoutPlanAgent      - Long-term training programs (uses highest model)
+4. WorkoutAnalystAgent   - Workout analysis (internal, coach handoff only)
+5. NutritionAgent        - Meal tracking, dietary guidance
+6. SleepAgent            - Sleep tracking, sleep hygiene
+7. MentalWellbeingAgent  - Stress tracking, interventions, mental health
+8. PhysicalHealthAgent   - Symptom tracking, health monitoring
+
+
+================================================================================
+TECHNOLOGY STACK
+================================================================================
+
+Core Framework:
+    - Framework: FastAPI 1.8.0+ (built on oxefit-fastapi wrapper)
+    - Python: 3.13+ (type hints, async/await)
+    - Server: Uvicorn 0.38.0+ (ASGI server)
+    - Package Manager: uv (fast, modern Python packaging)
+
+AI & LLM:
+    - Agent Framework: LangGraph 1.0.3+ (multi-agent orchestration)
+    - Language Model: Google Gemini
+        - Router/Aggregator: gemini-2.0-flash-lite (level 1)
+        - Most Agents: gemini-2.5-flash (level 2)
+        - WorkoutPlan Agent: gemini-2.5-pro (level 3)
+    - LangChain: 1.2.3+ (LLM abstraction)
+
+Database:
+    - Primary DB: MongoDB Atlas
+    - Cache: Redis (for session/request caching)
+
+Infrastructure:
+    - Deployment: Azure App Service
+    - Message Queue: Kafka 0.13.0+ (async event processing)
+    - Task Scheduling: APScheduler 3.10.4+
+
+
+================================================================================
+DEBUGGING TIPS
+================================================================================
+
+- LangSmith       - Enable tracing in .env to see LLM interactions
+- Swagger UI      - http://localhost:8000/docs for API testing
+- MongoDB Compass - Inspect database directly
+- Tests           - Run specific tests with: pytest tests/path -v
+
+
+================================================================================
+COMMON DEVELOPMENT TASKS
+================================================================================
+
+Adding a New Tool:
+    1. Create function class in infrastructure/functions/your_domain/
+    2. Inherit from OxeAIFunction[TInput, TOutput]
+    3. Register in infrastructure/functions/registration.py
+    4. Add tests in tests/functions/
+
+Adding an HTTP Endpoint:
+    1. Create router in interfaces/http/routers/
+    2. Register in web/main.py with app.include_router()
+    3. Add to OpenAPI tags
+
+Adding a Domain Model:
+    1. Create model in domain/your_domain/models.py
+    2. Create repository interface in persistence.py
+    3. Implement MongoDB repository
+    4. Add service layer if needed
+
+
+================================================================================
+LOCAL DEVELOPMENT SETUP
+================================================================================
+
+# 1. Install uv
+brew install uv  # macOS
+
+# 2. Authenticate with OxeFit private PyPI
+uv auth login pkgs.dev.azure.com --token -
+
+# 3. Install dependencies
+uv sync --frozen
+
+# 4. Google Cloud auth for Gemini
+gcloud auth application-default login
+gcloud config set project franktest-353520
+
+# 5. Run app
+cd src
+python -m uvicorn web.main:app --reload --port 8000
+
+
+================================================================================
+RUNNING TESTS
+================================================================================
+
+# All tests (excluding slow/costly ones)
+python -m pytest -m "not explicit"
+
+# Specific module
+python -m pytest tests/domain/
+
+# With coverage
+python -m pytest --cov=src --cov-report=html
+
+# Specific test
+python -m pytest tests/domain/test_something.py::test_case_name -v
+
+
+================================================================================
+RESOURCES & REFERENCES
+================================================================================
+
+Internal Documentation:
+    - readme.md                              - Main project README
+    - docs/architecture/PROJECT_OVERVIEW.md  - Comprehensive architecture guide
+    - docs/WORKER_DEPLOYMENT.md              - Worker deployment guide
+    - docs/tracker_creation_flow.md          - Tracker creation workflow
+
+External Resources:
+    - FastAPI: https://fastapi.tiangolo.com/
+    - LangGraph: https://python.langchain.com/docs/langgraph
+    - Google Gemini API: https://ai.google.dev/docs
+    - MongoDB: https://docs.mongodb.com/
+    - Pydantic: https://docs.pydantic.dev/
+
+
+================================================================================
+END OF GUIDE
+================================================================================
